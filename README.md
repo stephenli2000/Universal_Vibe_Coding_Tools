@@ -36,6 +36,7 @@ python3 -m venv venv && source venv/bin/activate
 python3 concatenate_text_files.py path/to/project
 # → creates ./<project>.txt containing all included files with headers
 ```
+The script supports --code-only and --py-only options to reduce the number of files included in the package.
 
 ---
 
