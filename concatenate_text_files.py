@@ -8,6 +8,9 @@ ALLOWED_EXTENSIONS = {
     '.py', '.tsx', '.css', '.js', '.conf', '.json', 
     '.html', '.yml', '.yaml', '.txt', '.sh', '.md', '.ini', '.ts'
 }
+CODE_EXTENSIONS = {
+    '.py', '.tsx', '.js', '.ts', '.html', '.css', '.sh',
+}
 ALLOWED_FILENAMES = {'dockerfile'}
 EXCLUDED_FILENAMES = {'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'gmail_token.json', 'gmail_credentials.json'}
 EXCLUDED_DIRS = {
@@ -27,7 +30,7 @@ def format_size(size_bytes: int) -> str:
         n += 1
     return f"{size_bytes:.2f} {power_labels[n]}" if n > 0 else f"{int(size_bytes)} {power_labels[n]}"
 
-def find_files_to_process(input_dir: Path) -> list[Path]:
+def find_files_to_process(input_dir: Path, code_only: bool) -> list[Path]:
     """
     Finds all files in the directory that match the allowlist and are not in the blocklist,
     while skipping excluded directories for performance.
@@ -35,6 +38,8 @@ def find_files_to_process(input_dir: Path) -> list[Path]:
     files_to_process = []
     print(f"🔍 Searching for files in '{input_dir}'...")
     print(f"   (Ignoring directories: {', '.join(EXCLUDED_DIRS)})")
+
+    extensions_to_check = CODE_EXTENSIONS if code_only else ALLOWED_EXTENSIONS
 
     for root, dirs, files in os.walk(input_dir):
         dirs[:] = [d for d in dirs if d.lower() not in EXCLUDED_DIRS]
@@ -45,7 +50,7 @@ def find_files_to_process(input_dir: Path) -> list[Path]:
             file_path = Path(root) / filename
             if file_path.name.lower() in ALLOWED_FILENAMES:
                 files_to_process.append(file_path)
-            elif file_path.suffix.lower() in ALLOWED_EXTENSIONS:
+            elif file_path.suffix.lower() in extensions_to_check:
                 files_to_process.append(file_path)
 
     files_to_process.sort()
@@ -88,6 +93,7 @@ def main():
         formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument("input_directory", help="The project directory to scan for files.")
+    parser.add_argument("--code-only", action="store_true", help="Only include files with code-related extensions.")
     args = parser.parse_args()
     
     input_dir = Path(args.input_directory).resolve()
@@ -99,7 +105,7 @@ def main():
     output_filename = f"{input_dir.name}.txt"
     output_file = Path(output_filename)
 
-    files_to_process = find_files_to_process(input_dir)
+    files_to_process = find_files_to_process(input_dir, args.code_only)
 
     if not files_to_process:
         print("🤷 No matching files found to concatenate.")
