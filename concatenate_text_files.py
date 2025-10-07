@@ -5,16 +5,17 @@ from pathlib import Path
 
 # --- Configuration ---
 ALLOWED_EXTENSIONS = {
-    '.py', '.tsx', '.css', '.js', '.conf', '.json', 
+    '.py', '.tsx', '.css', '.js', '.conf', '.json',
     '.html', '.yml', '.yaml', '.txt', '.sh', '.md', '.ini', '.ts'
 }
 CODE_EXTENSIONS = {
     '.py', '.tsx', '.js', '.ts', '.html', '.css', '.sh',
 }
+PYTHON_EXTENSIONS = {'.py'}
 ALLOWED_FILENAMES = {'dockerfile'}
 EXCLUDED_FILENAMES = {'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'gmail_token.json', 'gmail_credentials.json'}
 EXCLUDED_DIRS = {
-    'node_modules', '.git', 'dist', 'build', 'out', 
+    'node_modules', '.git', 'dist', 'build', 'out',
     '.vscode', '__pycache__', '.idea', '.venv'
 }
 
@@ -30,7 +31,7 @@ def format_size(size_bytes: int) -> str:
         n += 1
     return f"{size_bytes:.2f} {power_labels[n]}" if n > 0 else f"{int(size_bytes)} {power_labels[n]}"
 
-def find_files_to_process(input_dir: Path, code_only: bool) -> list[Path]:
+def find_files_to_process(input_dir: Path, code_only: bool, py_only: bool) -> list[Path]:
     """
     Finds all files in the directory that match the allowlist and are not in the blocklist,
     while skipping excluded directories for performance.
@@ -39,18 +40,26 @@ def find_files_to_process(input_dir: Path, code_only: bool) -> list[Path]:
     print(f"🔍 Searching for files in '{input_dir}'...")
     print(f"   (Ignoring directories: {', '.join(EXCLUDED_DIRS)})")
 
-    extensions_to_check = CODE_EXTENSIONS if code_only else ALLOWED_EXTENSIONS
+    if py_only:
+        extensions_to_check = PYTHON_EXTENSIONS
+        print("   (Filtering for Python files only)")
+    elif code_only:
+        extensions_to_check = CODE_EXTENSIONS
+        print("   (Filtering for code files only)")
+    else:
+        extensions_to_check = ALLOWED_EXTENSIONS
 
     for root, dirs, files in os.walk(input_dir):
+        # Exclude specified directories
         dirs[:] = [d for d in dirs if d.lower() not in EXCLUDED_DIRS]
+        
         for filename in files:
             if filename.lower() in EXCLUDED_FILENAMES:
                 continue
             
             file_path = Path(root) / filename
-            if file_path.name.lower() in ALLOWED_FILENAMES:
-                files_to_process.append(file_path)
-            elif file_path.suffix.lower() in extensions_to_check:
+            # Check for allowed filenames or extensions
+            if file_path.name.lower() in ALLOWED_FILENAMES or file_path.suffix.lower() in extensions_to_check:
                 files_to_process.append(file_path)
 
     files_to_process.sort()
@@ -93,7 +102,12 @@ def main():
         formatter_class=argparse.RawTextHelpFormatter
     )
     parser.add_argument("input_directory", help="The project directory to scan for files.")
-    parser.add_argument("--code-only", action="store_true", help="Only include files with code-related extensions.")
+    
+    # Add filtering options
+    filter_group = parser.add_mutually_exclusive_group()
+    filter_group.add_argument("--code-only", action="store_true", help="Only include files with code-related extensions.")
+    filter_group.add_argument("--py-only", action="store_true", help="Only include Python (.py) files.")
+    
     args = parser.parse_args()
     
     input_dir = Path(args.input_directory).resolve()
@@ -105,7 +119,7 @@ def main():
     output_filename = f"{input_dir.name}.txt"
     output_file = Path(output_filename)
 
-    files_to_process = find_files_to_process(input_dir, args.code_only)
+    files_to_process = find_files_to_process(input_dir, args.code_only, args.py_only)
 
     if not files_to_process:
         print("🤷 No matching files found to concatenate.")
