@@ -108,13 +108,15 @@ Example (Single Commit Mode): ./save_files.py --this f9e8d7c""",
     try:
         with open(output_filename, 'w', encoding='utf-8') as f:
             f.write("=== GIT HISTORY ===\n")
+            f.write(history_command + '\n\n')
             f.write(git_history)
-            f.write("\n\n" + "="*20 + "\n\n")
+            f.write("\n\n" + "====================" + "\n\n")
 
             if not changed_files:
                 f.write("No files were changed in the specified commit(s).\n")
             else:
                 f.write(files_header)
+                f.write(files_changed_command + '\n')
                 for file_path in changed_files:
                     try:
                         print(f"  - Reading content of: {file_path}")
@@ -124,9 +126,9 @@ Example (Single Commit Mode): ./save_files.py --this f9e8d7c""",
                     except Exception as e:
                         file_content = f'{e}'
 
-                    f.write("\n" + "="*10 + f" FILE: {file_path} " + "="*10 + "\n")
+                    f.write("\n" + "===" + f" FILE: {file_path} " + "===" + "\n")
                     f.write(file_content)
-                    f.write("\n")
+                    f.write("\n" + "===" + "=" * len(f" FILE: {file_path} ") + "===" + "\n")
 
         print(f"\nSuccessfully created {output_filename}")
 
