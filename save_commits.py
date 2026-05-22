@@ -1,40 +1,9 @@
 #!/usr/bin/env python3
 import argparse
-import subprocess
 import sys
 import os
 
-from shared_utils import summary, format_size
-
-def run_command(command):
-    """
-    Executes a shell command and returns its output.
-    Exits the script if the command fails.
-    """
-    try:
-        # Execute the command. We use text=True to get stdout/stderr as strings.
-        # check=True will raise a CalledProcessError if the command returns a non-zero exit code.
-        result = subprocess.run(
-            command,
-            shell=True,
-            check=True,
-            capture_output=True,
-            text=True
-        )
-        return result.stdout.strip()
-    except subprocess.CalledProcessError as e:
-        # Handle errors, such as invalid commit IDs or not being in a git repo.
-        print(f"Error executing command: {e.cmd}", file=sys.stderr)
-        print(f"Return code: {e.returncode}", file=sys.stderr)
-        err_msg = f"{e.stderr.strip()}"
-        print(f"{err_msg}", file=sys.stderr)
-        return err_msg
-    except FileNotFoundError:
-        # Handle the case where 'git' is not installed or not in the system's PATH.
-        print("Error: 'git' command not found.", file=sys.stderr)
-        print("Please ensure Git is installed and accessible in your system's PATH.", file=sys.stderr)
-        sys.exit(1)
-
+from shared_utils import summary, format_size, run_command
 
 def main():
     """

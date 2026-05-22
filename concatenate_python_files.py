@@ -7,7 +7,7 @@ import argparse
 from collections import deque
 from typing import List, Set
 
-from shared_utils import summary
+from shared_utils import summary, write_concatenated_artifact
 
 def is_local_module(module_path: str, search_folder: str) -> bool:
     """Check if a resolved module path is within the specified search folder."""
@@ -123,27 +123,6 @@ def find_all_dependencies(start_scripts: List[str], search_folder: str) -> Set[s
             
     return all_found_dependencies
 
-def create_concatenated_file(file_list: List[str], search_folder: str, output_filename: str, summary_text: str):
-    """Creates the final text file with all the file contents and headers."""
-    header = "=" * 80
-    try:
-        with open(output_filename, 'w', encoding='utf-8') as outfile:
-            outfile.write(f"--- START OF FILE {output_filename} ---\n\n")
-            for file_path in file_list:
-                relative_path = os.path.relpath(file_path, search_folder)
-                outfile.write(f"{header}\ncat {relative_path}\n{header}\n")
-                try:
-                    with open(file_path, 'r', encoding='utf-8') as infile:
-                        outfile.write(infile.read())
-                    outfile.write("\n\n")
-                except IOError as e:
-                    outfile.write(f"!!! ERROR: Could not read file {relative_path}: {e} !!!\n\n")
-            outfile.write(summary_text)
-        print(f"Successfully created concatenated file: {output_filename}")
-    except IOError as e:
-        print(f"Error: Could not write to output file {output_filename}. {e}", file=sys.stderr)
-        sys.exit(1)
-
 def main():
     """Main function to parse arguments and drive the process."""
     parser = argparse.ArgumentParser(
@@ -182,10 +161,13 @@ def main():
 
     # --- NEW: Calculate size and generate summary ---
     file_data_for_summary = []
+    file_items = []
     for dep in sorted_deps:
         if os.path.isfile(dep):
             sz = os.path.getsize(dep)
-            file_data_for_summary.append((os.path.relpath(dep, folder), sz))
+            display_path = os.path.relpath(dep, folder)
+            file_data_for_summary.append((display_path, sz))
+            file_items.append((display_path, dep))
 
     summary_text = summary(
         command_args=sys.argv, 
@@ -194,7 +176,7 @@ def main():
     )
     print(summary_text)
 
-    create_concatenated_file(sorted_deps, folder, output_filename, summary_text)
+    write_concatenated_artifact(output_filename, file_items, summary_text)
 
 if __name__ == "__main__":
     main()

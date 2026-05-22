@@ -4,24 +4,14 @@ import argparse
 from pathlib import Path
 from collections import defaultdict
 
+from shared_utils import format_size
+
 # A set of common text file extensions for quick lookups. Case-insensitive.
 KNOWN_TEXT_EXTENSIONS = {
     '.txt', '.md', '.py', '.js', '.ts', '.tsx', '.jsx', '.html', '.css', 
     '.scss', '.json', '.yml', '.yaml', '.xml', '.csv', '.sh', '.bat', 
     '.ps1', '.ini', '.cfg', '.conf', '.log', 'dockerfile', '.sql'
 }
-
-def format_size(size_bytes: int) -> str:
-    """Converts a size in bytes to a human-readable string (KB, MB, GB)."""
-    if size_bytes == 0:
-        return "0 B"
-    power = 1024
-    n = 0
-    power_labels = {0: 'B', 1: 'KB', 2: 'MB', 3: 'GB', 4: 'TB'}
-    while size_bytes >= power and n < len(power_labels) - 1:
-        size_bytes /= power
-        n += 1
-    return f"{size_bytes:.2f} {power_labels[n]}" if n > 0 else f"{int(size_bytes)} {power_labels[n]}"
 
 def analyze_directory(root_path: Path):
     """
