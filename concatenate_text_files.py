@@ -32,16 +32,24 @@ def get_display_path(file_path: Path, base_dir: Optional[Path]) -> Path:
     except ValueError:
         return file_path.absolute()
 
-def find_files_to_process(input_dir: Path, code_only: bool, py_only: bool, recursive: bool, max_size: Optional[int]) -> list[tuple[Path, int, Path]]:
+def find_files_to_process(
+    input_dir: Path, 
+    code_only: bool, 
+    py_only: bool, 
+    recursive: bool, 
+    max_size: Optional[int],
+    name_exclusions: set[str],
+    path_exclusions: set[Path]
+) -> list[tuple[Path, int, Path]]:
     """
-    Finds all files in the directory that match the allowlist and are not in the blocklist.
+    Finds all files in the directory that match the allowlist and are not in the blocklists.
     Returns a list of tuples containing (file_path, file_size, origin_base_directory).
     """
     files_with_info = []
     print(f"\n🔍 Searching for files in directory '{input_dir}'...")
     
     if recursive:
-        print(f"   (Including subfolders, ignoring: {', '.join(EXCLUDED_DIRS)})")
+        print(f"   (Including subfolders, ignoring standard exclusions)")
     else:
         print("   (Skipping subfolders)")
 
@@ -55,16 +63,25 @@ def find_files_to_process(input_dir: Path, code_only: bool, py_only: bool, recur
         extensions_to_check = ALLOWED_EXTENSIONS
 
     for root, dirs, files in os.walk(input_dir):
+        current_root = Path(root).resolve()
+
         if not recursive:
             dirs[:] = []  # Prevent os.walk from descending into subdirectories
         else:
-            dirs[:] = [d for d in dirs if d.lower() not in EXCLUDED_DIRS]
+            dirs[:] = [
+                d for d in dirs 
+                if d.lower() not in EXCLUDED_DIRS 
+                and d not in name_exclusions
+                and (current_root / d).resolve() not in path_exclusions
+            ]
         
         for filename in files:
-            if filename.lower() in EXCLUDED_FILENAMES:
+            if filename.lower() in EXCLUDED_FILENAMES or filename in name_exclusions:
                 continue
             
             file_path = Path(root) / filename
+            if file_path.resolve() in path_exclusions:
+                continue
             if file_path.name.lower() in ALLOWED_FILENAMES or file_path.suffix.lower() in extensions_to_check:
                 try:
                     size = file_path.stat().st_size
@@ -90,6 +107,7 @@ def main():
     # Execution Modifiers
     parser.add_argument("-r", "--recursive", action="store_true", help="Include subfolders recursively for directory inputs.")
     parser.add_argument("--max", type=int, help="Maximum file size in bytes. Files larger than this will be excluded.")
+    parser.add_argument("--no", action="append", default=[], help="Exclude specific files or directories by name or path. Can be used multiple times.")
 
     # Content filters (Only apply to folders)
     filter_group = parser.add_mutually_exclusive_group()
@@ -100,11 +118,18 @@ def main():
     
     args = parser.parse_args()
     
+    name_exclusions = set(args.no)
+    path_exclusions = {Path(p).resolve() for p in args.no}
+    
     found_files = []
 
     # Process all unified inputs (Files + Folders)
     for input_str in args.inputs:
         input_path = Path(input_str).resolve()
+        
+        if input_path.name in name_exclusions or input_path in path_exclusions:
+            print(f"⚠️ Skipping explicitly provided input '{input_str}' as it is in the exclusion list.")
+            continue
         
         if not input_path.exists():
             print(f"❌ Error: '{input_str}' not found. Skipping.")
@@ -119,7 +144,17 @@ def main():
             found_files.append((input_path, size, None))
             
         elif input_path.is_dir():
-            found_files.extend(find_files_to_process(input_path, args.code_only, args.py_only, args.recursive, args.max))
+            found_files.extend(
+                find_files_to_process(
+                    input_path, 
+                    args.code_only, 
+                    args.py_only, 
+                    args.recursive, 
+                    args.max,
+                    name_exclusions,
+                    path_exclusions
+                )
+            )
 
     # Remove duplicates (in case explicitly listed files overlap with directory searches)
     unique_files = {}
